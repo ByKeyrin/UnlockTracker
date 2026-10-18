@@ -18,4 +18,17 @@ export interface UnlockGame {
 }
 
 /** Onglets de navigation de l'application. */
-export type Onglet = 'catalogue' | 'suivi' | 'filtres';
+export type Onglet = 'catalogue' | 'suivi' | 'filtres' | 'partage';
+
+/** Identifiant d'un profil utilisateur (partage multi-utilisateurs). */
+export type ProfilId = 'kevin' | 'copine';
+
+/** Profil utilisateur partageant la collection Unlock!. */
+export interface Profil {
+  /** Identifiant unique du profil. */
+  id: ProfilId;
+  /** Nom affiché du joueur. */
+  nom: string;
+  /** Emoji représentant l'avatar du profil. */
+  avatar: string;
+}

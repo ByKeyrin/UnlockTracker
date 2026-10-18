@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ThemeToggle } from './components/ui/ThemeToggle';
 import { CatalogueScreen } from './features/catalogue/CatalogueScreen';
 import { FiltersScreen } from './features/filters/FiltersScreen';
+import { ShareScreen } from './features/share/ShareScreen';
 import { TrackingScreen } from './features/tracking/TrackingScreen';
 import { useDarkMode } from './hooks/useDarkMode';
 import type { Onglet } from './types';
@@ -10,6 +11,7 @@ const ONGLETS: { id: Onglet; label: string }[] = [
   { id: 'catalogue', label: 'Catalogue' },
   { id: 'suivi', label: 'Suivi' },
   { id: 'filtres', label: 'Filtres' },
+  { id: 'partage', label: 'Partage' },
 ];
 
 export default function App() {
@@ -56,6 +58,7 @@ export default function App() {
         {ongletActif === 'catalogue' && <CatalogueScreen />}
         {ongletActif === 'suivi' && <TrackingScreen />}
         {ongletActif === 'filtres' && <FiltersScreen />}
+        {ongletActif === 'partage' && <ShareScreen />}
       </main>
     </div>
   );
