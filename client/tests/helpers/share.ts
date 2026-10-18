@@ -1,51 +1,39 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 
 /**
- * Helpers E2E de l'écran « Partage » UnlockTracker (Sprint 5).
+ * Helpers E2E de l'écran « Partage » UnlockTracker.
  * Agent : TEMPER (QA)
  *
  * Ce module centralise les fixtures et les sélecteurs réutilisables des tests
- * du partage multi-utilisateurs (`tests/share.spec.ts`). Si le DOM du partage
- * évolue, on ne modifie les sélecteurs qu'ici, pas dans chaque test.
+ * du partage (`tests/share.spec.ts`). Si le DOM du partage évolue, on ne
+ * modifie les sélecteurs qu'ici, pas dans chaque test.
  *
- * Contrat avec le code de l'application (composants de Pixel, sprint 5) :
- *   - `ShareScreen`     : écran « Partage » (onglet du header), titre
- *     « Partage 🎭 NomDuProfil » (h2) ;
- *   - `ProfileSelector` : `<section aria-label="Choix du profil">` avec un
- *     bouton par profil (« Kevin », « Copine »), `aria-pressed` sur le profil
- *     actif ; la sélection est persistée dans le localStorage (clé
- *     `sweatbook_profile`, valeur brute `'kevin'` ou `'copine'`) ;
- *   - `ProfileStats`    : `<section aria-label="Statistiques par profil">`
- *     avec une carte par profil (« Jeux joués », « En cours », « Progression »,
- *     « Minutes jouées ») et une barre `role="progressbar"` nommée
- *     « Progression de <Profil> » ;
- *   - comparaison       : barre `role="img"` « Répartition comparative des
- *     jeux terminés par profil », message « … a joué le plus … » (ou
- *     « Égalité parfaite ») et légende « Kevin : N jeux (P %) » ;
- *   - `SharedList`      : `<section aria-label="Jeux joués par les profils">`
- *     (h2 « Liste partagée ») listant les jeux terminés par AU MOINS un
- *     profil (règle R5 : statuts communs), avec des boutons de filtre
- *     (`aria-label="Filtres de la liste partagée"`) : « Tous les joués »,
- *     « Joués ensemble », « Kevin », « Copine ».
+ * Contrat avec le code de l'application (UI sans profils, collection unique) :
+ *   - `ShareScreen` : écran « Partage » (onglet du header), titre « Partage »
+ *     (h2), puis une vue d'ensemble en `<ul>` de 4 cartes : « Aventures »,
+ *     « Jeux joués », « En cours » et « Progression » (pourcentage) ;
+ *   - `SharedList`  : `<section aria-label="Jeux joués" data-testid=
+ *     "shared-list">` (h2 « Liste des jeux joués ») listant UNIQUEMENT les
+ *     jeux terminés (`statut === 'termine'`), triés par date de fin
+ *     décroissante puis par nom, avec le récapitulatif « N jeux terminés sur
+ *     M. » ; l'état vide affiche « Aucun jeu terminé pour le moment. ».
  *
- * Données (hook `useProfile`) : la collection de chaque profil est persistée
- * dans le localStorage sous la clé `sweatbook_profile_games_<id>` (JSON
- * `UnlockGame[]`). Les profils sont fixes : « Kevin » et « Copine ».
+ * Données (hook `useGames`) : la collection unique est persistée dans le
+ * localStorage sous la clé `sweatbook_games` (JSON `UnlockGame[]`).
  */
 
-/** Clé `localStorage` du profil actif (valeur brute `'kevin'` ou `'copine'`). */
-export const ACTIVE_PROFILE_KEY = 'sweatbook_profile';
+/** Clé `localStorage` de la collection unique (hook `useGames`). */
+export const GAMES_STORAGE_KEY = 'sweatbook_games';
 
-/** Préfixe des clés `localStorage` des collections de jeux par profil. */
-export const PROFILE_GAMES_PREFIX = 'sweatbook_profile_games_';
-
-/** Jeu de test partagé entre les profils (forme du hook `useProfile`). */
+/** Jeu de test de la collection partagée (forme du hook `useGames`). */
 export interface TestShareGame {
-  /** Identifiant unique du jeu (commun aux deux profils). */
+  /** Identifiant unique du jeu. */
   id: string;
-  /** Nom de la boîte Unlock!. */
+  /** Nom de l'aventure (français). */
   nom: string;
-  /** Série d'appartenance (simple chiffre, ex : `'2'`). */
+  /** Titre officiel anglais de l'aventure. */
+  nomEn: string;
+  /** Série d'appartenance (ex : `'1'`, `'HS'`, `'Short'`). */
   serie: string;
   /** Numéro du jeu dans sa série. */
   numero: number;
@@ -55,152 +43,190 @@ export interface TestShareGame {
   difficulte: 1 | 2 | 3;
   /** Durée estimée en minutes. */
   duree: number;
-  /** Statut de la partie POUR le profil concerné. */
+  /** Statut de la partie. */
   statut: 'non_joue' | 'en_cours' | 'termine';
   /** Date de fin de partie (ISO `AAAA-MM-DD`), si terminé. */
   dateFin?: string;
+  /** Identifiant de la boîte contenant l'aventure. */
+  boiteId: string;
+  /** Année de sortie de la boîte. */
+  annee: number;
+  /** Gamme d'appartenance. */
+  gamme: 'originale' | 'star-wars' | 'short';
 }
 
 /**
  * Prépare un jeu de données de test déterministe pour l'écran Partage.
  *
- * Les 5 jeux sont suivis par les DEUX profils mais avec des statuts
- * différents, ce qui couvre tous les cas de la liste partagée :
- *   - « Le Vol du Diamant »    : terminé par Kevin ET Copine (« ensemble ») ;
- *   - « L'Île du Trésor »      : terminé par Kevin seul ;
- *   - « Le Mystère de la Momie » : terminé par Copine seule ;
- *   - « Mission Apollo »       : en cours pour les deux (donc absent de la
- *     liste partagée, qui ne montre que les jeux terminés) ;
- *   - « Le Manoir Hanté »      : terminé par Kevin seul.
+ * Les 5 jeux couvrent tous les statuts de la collection partagée :
+ *   - « Le Vol du Diamant »      : terminé le 2026-05-10 ;
+ *   - « L'Île du Trésor »        : terminé le 2026-03-15 ;
+ *   - « Le Mystère de la Momie » : terminé le 2026-05-25 (le plus récent) ;
+ *   - « Mission Apollo »         : en cours (donc absent de la liste) ;
+ *   - « Le Manoir Hanté »        : jamais joué (absent de la liste).
  *
- * Statistiques attendues :
- *   - Kevin  : 3 joués, 1 en cours, 60 %, 180 min ;
- *   - Copine : 2 joués, 1 en cours, 40 %, 150 min.
+ * Statistiques attendues sur la vue d'ensemble :
+ *   - Aventures : 5 ; Jeux joués : 3 ; En cours : 1 ; Progression : 60 %.
+ * Liste des jeux joués attendue (tri par date décroissante) :
+ *   1. Le Mystère de la Momie (2026-05-25)
+ *   2. Le Vol du Diamant (2026-05-10)
+ *   3. L'Île du Trésor (2026-03-15)
  *
  * Les données sont injectées AVANT la navigation via `addInitScript` : elles
  * sont donc en place dès le premier rendu React.
  *
  * @param page - La page Playwright sur laquelle injecter les données
- * @returns La liste des jeux de test (catalogue commun), pour les attentes
+ * @returns La liste des jeux de test (collection partagée), pour les attentes
  * @example
  * const games = seedShareGames(page);   // injection dans le localStorage
  * await openShareScreen(page);
  * expect(games).toHaveLength(5);
  */
 export function seedShareGames(page: Page): TestShareGame[] {
-  /** Catalogue commun aux deux profils (statuts neutres, non joués). */
-  const catalogue: TestShareGame[] = [
+  const games = baseGames().map((game) => ({ ...game }));
+  // Statuts de la collection partagée : 3 terminés, 1 en cours, 1 non joué.
+  const statuts: Record<string, TestShareGame['statut']> = {
+    'share-1': 'termine',
+    'share-2': 'termine',
+    'share-3': 'termine',
+    'share-4': 'en_cours',
+    'share-5': 'non_joue',
+  };
+  for (const game of games) {
+    game.statut = statuts[game.id];
+  }
+
+  injectGames(page, games);
+  return games;
+}
+
+/**
+ * Prépare une collection SANS aucun jeu terminé (état vide de la liste).
+ *
+ * Les 5 jeux sont tous `non_joue` ou `en_cours` : la liste des jeux joués
+ * doit afficher « Aucun jeu terminé pour le moment. » et la vue d'ensemble
+ * doit annoncer 0 jeu joué (0 % de progression).
+ *
+ * @param page - La page Playwright sur laquelle injecter les données
+ * @returns La liste des jeux de test injectés
+ * @example
+ * seedShareGamesWithoutCompleted(page);
+ * await openShareScreen(page);
+ */
+export function seedShareGamesWithoutCompleted(page: Page): TestShareGame[] {
+  const games = baseGames().map((game, index) => ({
+    ...game,
+    statut: index === 0 ? ('en_cours' as const) : ('non_joue' as const),
+    dateFin: undefined,
+  }));
+  injectGames(page, games);
+  return games;
+}
+
+/**
+ * Retourne le catalogue de test de base (statuts neutres, sans date de fin).
+ *
+ * Copie défensive : chaque appel retourne de nouveaux objets modifiables.
+ *
+ * @returns Les 5 jeux de test (dates de fin incluses pour les terminés)
+ */
+function baseGames(): TestShareGame[] {
+  return [
     {
       id: 'share-1',
       nom: 'Le Vol du Diamant',
+      nomEn: 'The Diamond Heist',
       serie: '1',
       numero: 1,
       theme: 'Polar',
       difficulte: 3,
       duree: 60,
       statut: 'non_joue',
+      dateFin: '2026-05-10',
+      boiteId: 'escape-adventures',
+      annee: 2017,
+      gamme: 'originale',
     },
     {
       id: 'share-2',
       nom: "L'Île du Trésor",
+      nomEn: 'Treasure Island',
       serie: '1',
       numero: 2,
       theme: 'Aventure',
       difficulte: 1,
       duree: 45,
       statut: 'non_joue',
+      dateFin: '2026-03-15',
+      boiteId: 'escape-adventures',
+      annee: 2017,
+      gamme: 'originale',
     },
     {
       id: 'share-3',
       nom: 'Le Mystère de la Momie',
+      nomEn: 'The Mummy Mystery',
       serie: '2',
       numero: 1,
       theme: 'Aventure',
       difficulte: 2,
       duree: 90,
       statut: 'non_joue',
+      dateFin: '2026-05-25',
+      boiteId: 'mystery-adventures',
+      annee: 2017,
+      gamme: 'originale',
     },
     {
       id: 'share-4',
       nom: 'Mission Apollo',
+      nomEn: 'Apollo Mission',
       serie: '2',
       numero: 2,
       theme: 'Science-fiction',
       difficulte: 1,
       duree: 60,
       statut: 'non_joue',
+      boiteId: 'mystery-adventures',
+      annee: 2017,
+      gamme: 'originale',
     },
     {
       id: 'share-5',
       nom: 'Le Manoir Hanté',
+      nomEn: 'The Haunted Manor',
       serie: '3',
       numero: 1,
       theme: 'Horreur',
       difficulte: 2,
       duree: 75,
       statut: 'non_joue',
+      boiteId: 'secret-adventures',
+      annee: 2017,
+      gamme: 'originale',
     },
   ];
+}
 
-  /** Statuts propres à Kevin : 3 terminés (Vol, Île, Manoir), 1 en cours. */
-  const statutsKevin: Record<string, TestShareGame['statut']> = {
-    'share-1': 'termine',
-    'share-2': 'termine',
-    'share-3': 'non_joue',
-    'share-4': 'en_cours',
-    'share-5': 'termine',
-  };
-  /** Statuts propres à Copine : 2 terminés (Vol, Momie), 1 en cours. */
-  const statutsCopine: Record<string, TestShareGame['statut']> = {
-    'share-1': 'termine',
-    'share-2': 'non_joue',
-    'share-3': 'termine',
-    'share-4': 'en_cours',
-    'share-5': 'non_joue',
-  };
-
-  // Copie défensive : chaque test reçoit ses propres objets modifiables.
-  const games = catalogue.map((game) => ({ ...game }));
-  const kevinGames = games.map((game) => ({ ...game, statut: statutsKevin[game.id] }));
-  const copineGames = games.map((game) => ({
-    ...game,
-    statut: statutsCopine[game.id],
-    dateFin: statutsCopine[game.id] === 'termine' ? '2026-05-10' : undefined,
-  }));
-
+/**
+ * Injecte une collection dans le localStorage avant chaque navigation.
+ *
+ * @param page - La page Playwright courante
+ * @param games - La collection à injecter (JSON `UnlockGame[]`)
+ */
+function injectGames(page: Page, games: TestShareGame[]): void {
   // addInitScript s'exécute avant les scripts de la page à CHAQUE navigation :
   // les données de test sont donc toujours en place au premier rendu React.
   void page.addInitScript(
-    (seed: {
-      activeKey: string;
-      prefix: string;
-      kevin: unknown;
-      copine: unknown;
-    }) => {
+    (seed: { key: string; games: unknown }) => {
       // On ne seed QUE si la clé est absente : après un rechargement, la
-      // persistance de l'application (useProfile) doit être respectée.
-      if (localStorage.getItem(seed.activeKey) === null) {
-        localStorage.setItem(seed.activeKey, 'kevin');
-      }
-      if (localStorage.getItem(seed.prefix + 'kevin') === null) {
-        localStorage.setItem(seed.prefix + 'kevin', JSON.stringify(seed.kevin));
-      }
-      if (localStorage.getItem(seed.prefix + 'copine') === null) {
-        localStorage.setItem(
-          seed.prefix + 'copine',
-          JSON.stringify(seed.copine),
-        );
+      // persistance de l'application (useGames) doit être respectée.
+      if (localStorage.getItem(seed.key) === null) {
+        localStorage.setItem(seed.key, JSON.stringify(seed.games));
       }
     },
-    {
-      activeKey: ACTIVE_PROFILE_KEY,
-      prefix: PROFILE_GAMES_PREFIX,
-      kevin: kevinGames,
-      copine: copineGames,
-    },
+    { key: GAMES_STORAGE_KEY, games },
   );
-
-  return games;
 }
 
 /**
@@ -217,150 +243,49 @@ export async function openShareScreen(page: Page): Promise<void> {
   // bouton d'onglet « Partage » du header (composant App).
   await page.getByRole('button', { name: 'Partage', exact: true }).click();
   await expect(
-    page.getByRole('heading', { name: /partage/i }),
+    page.getByRole('heading', { name: /^partage$/i }),
     'le titre « Partage » doit être affiché',
   ).toBeVisible();
 }
 
 /**
- * Retourne le sélecteur de profil (`ProfileSelector`).
+ * Retourne la carte de la vue d'ensemble portant un libellé.
  *
  * @param page - La page Playwright courante
- * @returns Le locator du sélecteur de profil
- */
-export function profileSelector(page: Page): Locator {
-  return page
-    .getByTestId('profile-selector')
-    .or(page.getByRole('region', { name: 'Choix du profil' }))
-    .first();
-}
-
-/**
- * Retourne le bouton de choix d'un profil (« Kevin », « Copine »).
- *
- * Le bouton porte `aria-pressed="true"` quand le profil est actif, et son
- * nom accessible inclut « Profil actif » ou « Changer de profil ».
- *
- * @param page - La page Playwright courante
- * @param nom - Le nom du profil (ex : « Copine »)
- * @returns Le locator cliquable du bouton de profil
+ * @param libellé - Le libellé de la carte (« Aventures », « Jeux joués »,
+ *                  « En cours » ou « Progression »)
+ * @returns Le locator de la carte de statistique
  * @example
- * await profileOption(page, 'Copine').click();
+ * await expect(overviewCard(page, 'Jeux joués')).toContainText('3');
  */
-export function profileOption(page: Page, nom: string): Locator {
-  return profileSelector(page).getByRole('button', { name: nom });
+export function overviewCard(page: Page, libellé: string): Locator {
+  return page.getByRole('listitem').filter({ hasText: libellé }).first();
 }
 
 /**
- * Change le profil actif via le `ProfileSelector` (clic sur son bouton).
+ * Retourne la liste des jeux joués (`SharedList`).
  *
  * @param page - La page Playwright courante
- * @param nom - Le nom du profil à activer (ex : « Copine »)
- * @returns Une promesse résolue une fois le profil sélectionné
- * @example
- * await selectProfile(page, 'Copine');
- */
-export async function selectProfile(page: Page, nom: string): Promise<void> {
-  await profileOption(page, nom).click();
-}
-
-/**
- * Retourne la zone de statistiques par profil (`ProfileStats`).
- *
- * @param page - La page Playwright courante
- * @returns Le locator des statistiques par profil
- */
-export function profileStats(page: Page): Locator {
-  return page
-    .getByTestId('profile-stats')
-    .or(page.getByRole('region', { name: 'Statistiques par profil' }))
-    .first();
-}
-
-/**
- * Retourne la barre de progression d'un profil (« Progression de Kevin »).
- *
- * @param page - La page Playwright courante
- * @param nom - Le nom du profil (ex : « Kevin »)
- * @returns Le locator de la barre de progression du profil
- * @example
- * await expect(progressionBar(page, 'Kevin')).toHaveAttribute('aria-valuenow', '60');
- */
-export function progressionBar(page: Page, nom: string): Locator {
-  return page.getByRole('progressbar', { name: `Progression de ${nom}` });
-}
-
-/**
- * Retourne la barre de comparaison des profils (vue « qui a joué le plus »).
- *
- * @param page - La page Playwright courante
- * @returns Le locator de la barre comparative
- */
-export function comparisonBar(page: Page): Locator {
-  return page
-    .getByTestId('profile-comparison')
-    .or(
-      page.getByRole('img', {
-        name: 'Répartition comparative des jeux terminés par profil',
-      }),
-    )
-    .first();
-}
-
-/**
- * Retourne la liste partagée des jeux (`SharedList`).
- *
- * @param page - La page Playwright courante
- * @returns Le locator de la liste partagée
+ * @returns Le locator de la liste des jeux joués
  */
 export function sharedList(page: Page): Locator {
   return page
     .getByTestId('shared-list')
-    .or(page.getByRole('region', { name: 'Jeux joués par les profils' }))
+    .or(page.getByRole('region', { name: 'Jeux joués' }))
     .first();
 }
 
 /**
- * Retourne le nom d'un jeu affiché dans la liste partagée.
+ * Retourne le nom d'un jeu affiché dans la liste des jeux joués.
  *
  * Les jeux sont vérifiés par leur nom plutôt que par une structure de DOM
  * précise : le test reste valide que les lignes soient rendues en `<li>`,
  * en `<article>` ou sous toute autre forme.
  *
  * @param page - La page Playwright courante
- * @param nom - Le nom du jeu attendu dans la liste partagée
- * @returns Le locator du nom du jeu dans la liste partagée
+ * @param nom - Le nom du jeu attendu dans la liste
+ * @returns Le locator du nom du jeu dans la liste des jeux joués
  */
 export function sharedGame(page: Page, nom: string): Locator {
   return sharedList(page).getByText(nom, { exact: true });
-}
-
-/**
- * Retourne un bouton de filtre de la liste partagée.
- *
- * @param page - La page Playwright courante
- * @param libelle - Le libellé exact du filtre (« Tous les joués »,
- *                  « Joués ensemble », « Kevin » ou « Copine »)
- * @returns Le locator cliquable du bouton de filtre
- * @example
- * await filterButton(page, 'Joués ensemble').click();
- */
-export function filterButton(page: Page, libelle: string): Locator {
-  return sharedList(page).getByRole('button', { name: libelle, exact: true });
-}
-
-/**
- * Applique un filtre de la liste partagée.
- *
- * @param page - La page Playwright courante
- * @param libelle - Le libellé exact du filtre à appliquer
- * @returns Une promesse résolue une fois le filtre appliqué
- * @example
- * await applyProfileFilter(page, 'Kevin');
- */
-export async function applyProfileFilter(
-  page: Page,
-  libelle: string,
-): Promise<void> {
-  await filterButton(page, libelle).click();
 }
