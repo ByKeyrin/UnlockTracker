@@ -37,34 +37,32 @@ test.describe('Smoke — UnlockTracker', () => {
     await page.goto('/')
 
     // Titre du document (balise <title>)
-    await expect(page).toHaveTitle(/.+/)
+    await expect(page).toHaveTitle(/unlocktracker/i)
 
     // Titre principal de la page (heading niveau 1) visible
     const heading = page.getByRole('heading', { level: 1 })
     await expect(heading).toBeVisible()
-    await expect(heading).not.toBeEmpty()
+    await expect(heading).toContainText(/unlocktracker/i)
   })
 
   test('la navigation est présente', async ({ page }) => {
     await page.goto('/')
 
-    // Une zone de navigation doit exister : <nav> (ou [role="navigation"])
-    // ou, à défaut (template Vite de Sprint 1), la section de liens principale.
-    // On ne cible que les éléments qui contiennent réellement des liens,
-    // pour éviter de matcher un <header> sans lien placé avant la nav.
+    // Une zone de navigation doit exister : <nav> / [role="navigation"]
+    // (ou, à défaut, la section de liens principale du template Vite).
     const nav = page
-      .locator(
-        'nav:has(a[href]), [role="navigation"]:has(a[href]), #next-steps:has(a[href])'
-      )
+      .getByRole('navigation')
+      .or(page.locator('#next-steps'))
       .first()
     await expect(nav).toBeVisible()
 
-    // Elle contient au moins un lien cliquable
-    const navLinks = nav.locator('a[href]')
-    await expect(navLinks.first()).toBeVisible()
+    // Elle contient au moins un élément de navigation interactif
+    // (liens <a href> ou boutons de navigation SPA, ex. « Catalogue »)
+    const navItems = nav.locator('a[href], button')
+    await expect(navItems.first()).toBeVisible()
     expect(
-      await navLinks.count(),
-      'la navigation doit contenir au moins un lien'
+      await navItems.count(),
+      'la navigation doit contenir au moins un élément interactif'
     ).toBeGreaterThan(0)
   })
 })

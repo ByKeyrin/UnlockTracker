@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Playwright — artefacts de test (ne jamais commiter)
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -22,3 +28,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Rapports et artefacts de tests Playwright (ne pas versionner)
+playwright-report/
+test-results/
