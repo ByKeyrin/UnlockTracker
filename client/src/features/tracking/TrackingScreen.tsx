@@ -1,11 +1,45 @@
-/** Écran de suivi des parties jouées — rempli dans un sprint ultérieur. */
+import { useCallback } from 'react';
+import { useGames } from '../../hooks/useGames';
+import { GameHistory } from './GameHistory';
+import { PlayedTimeline } from './PlayedTimeline';
+import { StatsCards } from './StatsCards';
+
+/**
+ * Écran de suivi des jeux joués : statistiques de la collection, chronologie
+ * des parties terminées et historique complet avec réinitialisation.
+ *
+ * @example
+ * <TrackingScreen />
+ */
 export function TrackingScreen() {
+  const { allGames, updateGame } = useGames();
+
+  /**
+   * Remet un jeu au statut « non joué » et efface sa date de fin.
+   *
+   * @param gameId - Identifiant du jeu à réinitialiser
+   */
+  const handleReset = useCallback(
+    (gameId: string) => {
+      updateGame(gameId, { statut: 'non_joue', dateFin: undefined });
+    },
+    [updateGame],
+  );
+
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <h2 className="text-xl font-semibold">Suivi</h2>
-      <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-        Le suivi de vos parties (à faire, en cours, terminées) arrivera ici.
-      </p>
-    </section>
+    <div className="flex flex-col gap-6">
+      <section className="flex flex-col gap-1">
+        <h2 className="text-xl font-semibold">Suivi des jeux joués</h2>
+        <p className="text-sm text-slate-600 dark:text-slate-400">
+          Vue d'ensemble de votre progression dans la collection Unlock!.
+        </p>
+      </section>
+
+      <StatsCards games={allGames} />
+      <PlayedTimeline games={allGames} />
+      <GameHistory games={allGames} onReset={handleReset} />
+    </div>
   );
 }
+
+export default TrackingScreen;

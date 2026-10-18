@@ -13,6 +13,8 @@ export interface UnlockGame {
   difficulte: 1 | 2 | 3;
   duree: number; // minutes
   statut: 'non_joue' | 'en_cours' | 'termine';
+  /** Date de fin de partie (ISO `AAAA-MM-JJ`), renseignée quand le statut passe à `termine`. */
+  dateFin?: string;
 }
 
 /** Onglets de navigation de l'application. */

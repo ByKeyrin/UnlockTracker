@@ -78,7 +78,13 @@ export function useGames(filters: UseGamesFilters = {}): UseGamesResult {
     (id: string) => {
       setGames((prev) =>
         prev.map((game) =>
-          game.id === id ? { ...game, statut: 'termine' as const } : game,
+          game.id === id
+            ? {
+                ...game,
+                statut: 'termine' as const,
+                dateFin: game.dateFin ?? todayIso(),
+              }
+            : game,
         ),
       );
     },
@@ -126,6 +132,15 @@ function loadGames(): UnlockGame[] {
     // localStorage indisponible ou JSON corrompu : on repart des données de démo.
     return DEMO_GAMES.map((game) => ({ ...game }));
   }
+}
+
+/**
+ * Retourne la date du jour au format ISO `AAAA-MM-JJ`.
+ *
+ * @returns La date du jour formatée
+ */
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 /**
