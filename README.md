@@ -5,8 +5,11 @@
 ![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-38B2AC?logo=tailwind-css&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green)
+[![Deploy to GitHub Pages](https://github.com/ByKeyrin/UnlockTracker/actions/workflows/deploy.yml/badge.svg)](https://github.com/ByKeyrin/UnlockTracker/actions/workflows/deploy.yml)
 
 > Application web pour recenser les jeux de société **Unlock** (Space Cowboys) et suivre ceux auxquels vous avez déjà joué.
+
+🌐 **Démo en ligne :** [https://bykeyrin.github.io/UnlockTracker/](https://bykeyrin.github.io/UnlockTracker/)
 
 Kevin et sa copine collectionnent les jeux *Unlock!*. Entre les séries, les numéros et les thèmes, il devient vite difficile de s'y retrouver : qu'avons-nous déjà joué ? Que nous reste-t-il à découvrir ? **UnlockTracker** répond à cette question en un clin d'œil.
 
