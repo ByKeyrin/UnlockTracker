@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { DEMO_GAMES } from '../data/games';
+import { ALL_GAMES } from '../data/games';
 import type { UnlockGame } from '../types';
 
 /** Clé du localStorage utilisée pour persister la collection. */
@@ -92,7 +92,7 @@ export function useGames(filters: UseGamesFilters = {}): UseGamesResult {
   );
 
   const resetDemo = useCallback(() => {
-    setGames(DEMO_GAMES.map((game) => ({ ...game })));
+    setGames(ALL_GAMES.map((game) => ({ ...game })));
   }, []);
 
   const filteredGames = useMemo(
@@ -121,16 +121,16 @@ function loadGames(): UnlockGame[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw === null) {
-      return DEMO_GAMES.map((game) => ({ ...game }));
+      return ALL_GAMES.map((game) => ({ ...game }));
     }
     const parsed: unknown = JSON.parse(raw);
     if (Array.isArray(parsed)) {
       return parsed as UnlockGame[];
     }
-    return DEMO_GAMES.map((game) => ({ ...game }));
+    return ALL_GAMES.map((game) => ({ ...game }));
   } catch {
     // localStorage indisponible ou JSON corrompu : on repart des données de démo.
-    return DEMO_GAMES.map((game) => ({ ...game }));
+    return ALL_GAMES.map((game) => ({ ...game }));
   }
 }
 

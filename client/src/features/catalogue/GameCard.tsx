@@ -1,4 +1,5 @@
 import type { UnlockGame } from '../../types';
+import { getGameImage, PLACEHOLDER_IMAGE } from '../../data/images';
 
 /** Libellés affichés pour chaque statut de jeu. */
 const STATUT_LABELS: Record<UnlockGame['statut'], string> = {
@@ -38,6 +39,15 @@ export function GameCard({ game, onMarkPlayed }: GameCardProps) {
 
   return (
     <article className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+      <img
+        src={getGameImage(game)}
+        onError={(e) => {
+          e.currentTarget.src = PLACEHOLDER_IMAGE;
+        }}
+        alt={game.nom}
+        className="aspect-square w-full rounded-md object-cover"
+        loading="lazy"
+      />
       <header className="flex items-start justify-between gap-2">
         <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
           {game.nom}

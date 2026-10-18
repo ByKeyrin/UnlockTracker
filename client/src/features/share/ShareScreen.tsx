@@ -1,60 +1,47 @@
 import { useMemo } from 'react';
-import { useProfile } from '../../hooks/useProfile';
-import { ProfileSelector } from './ProfileSelector';
-import { ProfileStats } from './ProfileStats';
+import { useGames } from '../../hooks/useGames';
 import { SharedList } from './SharedList';
 
 /**
- * Écran de partage multi-utilisateurs : sélection du profil actif, vue
- * d'ensemble du partage, statistiques comparées des deux profils et liste
- * partagée des jeux joués.
+ * Écran de partage : vue d'ensemble de la collection unique (aventures
+ * jouées, en cours, progression) et liste simple des jeux terminés.
  *
  * @example
  * <ShareScreen />
  */
 export function ShareScreen() {
-  const { profils, profilActif, gamesByProfil, setProfilActif } = useProfile();
+  const { allGames } = useGames();
 
-  // Vue d'ensemble du partage : jeux joués par les deux profils / par un seul.
+  // Vue d'ensemble de la collection partagée.
   const apercu = useMemo(() => {
-    const tousIds = profils.map((profil) =>
-      new Set(
-        (gamesByProfil[profil.id] ?? [])
-          .filter((game) => game.statut === 'termine')
-          .map((game) => game.id),
-      ),
-    );
-    const idsUniques = new Set<string>();
-    for (const ids of tousIds) {
-      for (const id of ids) idsUniques.add(id);
-    }
-    const communs = [...idsUniques].filter((id) =>
-      tousIds.every((ids) => ids.has(id)),
+    const total = allGames.length;
+    const joues = allGames.filter((game) => game.statut === 'termine').length;
+    const enCours = allGames.filter(
+      (game) => game.statut === 'en_cours',
     ).length;
     return {
-      total: idsUniques.size,
-      communs,
-      seuls: idsUniques.size - communs,
+      total,
+      joues,
+      enCours,
+      progression: total === 0 ? 0 : Math.round((joues / total) * 100),
     };
-  }, [profils, gamesByProfil]);
+  }, [allGames]);
 
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-1">
-        <h2 className="text-xl font-semibold">
-          Partage {profilActif.avatar} {profilActif.nom}
-        </h2>
+        <h2 className="text-xl font-semibold">Partage</h2>
         <p className="text-sm text-slate-600 dark:text-slate-400">
-          Kevin et sa copine jouent ensemble aux Unlock! : comparez vos
-          progressions et retrouvez vos parties communes.
+          Notre collection Unlock! : suivez nos parties et retrouvez la liste
+          des aventures terminées.
         </p>
       </section>
 
-      {/* Vue d'ensemble du partage */}
-      <ul className="grid grid-cols-3 gap-3">
+      {/* Vue d'ensemble de la collection */}
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <li className="rounded-lg border border-slate-200 border-l-4 border-l-indigo-500 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Jeux joués au total
+            Aventures
           </p>
           <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
             {apercu.total}
@@ -62,33 +49,31 @@ export function ShareScreen() {
         </li>
         <li className="rounded-lg border border-slate-200 border-l-4 border-l-green-500 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Joués ensemble
+            Jeux joués
           </p>
           <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
-            {apercu.communs}
+            {apercu.joues}
           </p>
         </li>
         <li className="rounded-lg border border-slate-200 border-l-4 border-l-amber-500 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Joués seul
+            En cours
           </p>
           <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
-            {apercu.seuls}
+            {apercu.enCours}
+          </p>
+        </li>
+        <li className="rounded-lg border border-slate-200 border-l-4 border-l-sky-500 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            Progression
+          </p>
+          <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
+            {apercu.progression} %
           </p>
         </li>
       </ul>
 
-      <ProfileSelector
-        profils={profils}
-        profilActifId={profilActif.id}
-        onSelectProfil={setProfilActif}
-      />
-      <ProfileStats
-        profils={profils}
-        profilActif={profilActif}
-        gamesByProfil={gamesByProfil}
-      />
-      <SharedList profils={profils} gamesByProfil={gamesByProfil} />
+      <SharedList games={allGames} />
     </div>
   );
 }

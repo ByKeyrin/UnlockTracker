@@ -1,9 +1,29 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useGames } from '../../hooks/useGames';
 import { GameList } from './GameList';
 
-/** Séries disponibles dans le catalogue de démonstration. */
-const SERIES = ['1', '2', '3', '4', '5', '6', '7'] as const;
+/**
+ * Dérive la liste des séries disponibles à partir de la collection.
+ *
+ * Les séries numériques sont triées dans l'ordre croissant, puis les séries
+ * hors numériques (`HS`, `Short`) par ordre alphabétique.
+ *
+ * @param games - Collection complète des jeux
+ * @returns Les séries uniques, triées
+ */
+function deriveSeries(games: { serie: string }[]): string[] {
+  const uniques = [...new Set(games.map((game) => game.serie))];
+  return uniques.sort((a, b) => {
+    const numA = Number(a);
+    const numB = Number(b);
+    const isNumA = Number.isFinite(numA);
+    const isNumB = Number.isFinite(numB);
+    if (isNumA && isNumB) return numA - numB;
+    if (isNumA) return -1;
+    if (isNumB) return 1;
+    return a.localeCompare(b);
+  });
+}
 
 /**
  * Écran du catalogue des jeux Unlock! : recherche par nom ou thème, filtre
@@ -15,7 +35,8 @@ const SERIES = ['1', '2', '3', '4', '5', '6', '7'] as const;
 export function CatalogueScreen() {
   const [recherche, setRecherche] = useState('');
   const [serie, setSerie] = useState<string | undefined>(undefined);
-  const { games, markPlayed } = useGames({ serie });
+  const { games, allGames, markPlayed } = useGames({ serie });
+  const series = useMemo(() => deriveSeries(allGames), [allGames]);
 
   return (
     <section className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -50,7 +71,7 @@ export function CatalogueScreen() {
         >
           Toutes
         </button>
-        {SERIES.map((s) => {
+        {series.map((s) => {
           const isActive = serie === s;
           return (
             <button
